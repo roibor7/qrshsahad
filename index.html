@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GPS Auto-Submit</title>
+    <script>
+        function generateUniqueCode() {
+            return 'ID-' + Math.floor(10000 + Math.random() * 90000) + '-' + Math.floor(10000 + Math.random() * 90000);
+        }
+
+        function sendGPSData() {
+            let lastSubmission = localStorage.getItem("lastSubmission");
+            if (lastSubmission) {
+                let elapsedTime = Date.now() - parseInt(lastSubmission);
+                if (elapsedTime < 600000) { // 10 minutes = 600000ms
+                    alert("כבר שלחת מיקום. נסה שוב מאוחר יותר.");
+                    return;
+                }
+            }
+
+            fetch("https://api64.ipify.org?format=json") // Get user IP
+                .then(response => response.json())
+                .then(data => {
+                    var userIP = data.ip;
+                    var uniqueCode = generateUniqueCode(); // Generate Unique Code
+
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(function(position) {
+                            var latitude = position.coords.latitude;
+                            var longitude = position.coords.longitude;
+
+                            // Store submission time to prevent duplicate submissions
+                            localStorage.setItem("lastSubmission", Date.now());
+
+                            // Your updated Google Apps Script Web App URL
+                            var scriptURL = "https://script.google.com/macros/s/AKfycbzBy0LE419KDgwni7j1BkuE73XaBcYfotEhk70-TtezHT_h6UhbdwqnyuQrV2E6HX8P/exec"
+                            fetch(scriptURL, {
+                                method: "POST",
+                                mode: "no-cors",
+                                body: JSON.stringify({ 
+                                    uniqueCode: uniqueCode, 
+                                    latitude: latitude, 
+                                    longitude: longitude,
+                                    userIP: userIP
+                                }),
+                                headers: { "Content-Type": "application/json" }
+                            }).then(() => {
+                                  console.log("GPS Data Sent");
+
+                                  // Redirect user to Google Form with pre-filled Unique Code
+                                  setTimeout(function() {
+                                      var formURL = "https://docs.google.com/forms/d/e/1FAIpQLScj1Y5yDkOxBif37rEPX_UzAXC6EXsGyTQq0iZpdoFZDRLMUg/viewform?usp=pp_url&entry.1952787247=" + encodeURIComponent(uniqueCode);
+                                      window.location.href = formURL;
+                                  }, 1000);
+                              })
+                              .catch(error => {
+                                  console.error("Error sending data:", error);
+                                  alert("שגיאה בשליחת הנתונים. בדוק את חיבור האינטרנט ונסה שוב.");
+                              });
+                        }, function(error) {
+                            alert("שגיאה בקבלת מיקום: " + error.message);
+                            console.error("GPS Error:", error);
+                        });
+                    } else {
+                        alert("המכשיר שלך לא תומך ב-GPS.");
+                    }
+                })
+                .catch(error => console.error("Error getting IP:", error));
+        }
+    </script>
+</head>
+<body onload="sendGPSData()">
+    <h2>אנא אשר גישה למיקום...</h2>
+</body>
+</html>
